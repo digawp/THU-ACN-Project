@@ -67,9 +67,13 @@ private:
         std::cout << file_path << " size is " << file_size << ", tellg=" << request_stream.tellg()<< std::endl;
 
         // Find the last folder delimiter
+        #ifdef _WIN32
+        size_t pos = file_path.find_last_of('\\');
+        #else
         size_t pos = file_path.find_last_of('/');
+        #endif
 
-        // '/' found. Cut all the folder names and just preserve the file name.
+        // Folder delimiter found. Cut all the folder names and just preserve the file name.
         if (pos!= std::string::npos)
         {
             file_path = file_path.substr(pos+1);
