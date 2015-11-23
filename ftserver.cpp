@@ -15,18 +15,24 @@ class async_tcp_connection: public boost::enable_shared_from_this<async_tcp_conn
 {
 public:
     async_tcp_connection(boost::asio::io_service& io_service)
-        : socket_(io_service), file_size(0)
+    : socket_(io_service), file_size(0)
     {
     }
+
     void start()
     {
         std::cout << __FUNCTION__  << std::endl;
         async_read_until(socket_, 
             request_buf, "\n\n",
             boost::bind(&async_tcp_connection::handle_read_request,
-            shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
+                shared_from_this(),
+                boost::asio::placeholders::error,
+                boost::asio::placeholders::bytes_transferred)
+            );
     }
-    boost::asio::ip::tcp::socket& socket() { return socket_; }
+
+    boost::asio::ip::tcp::socket& get_socket() { return socket_; }
+
 private:
     boost::asio::streambuf request_buf;
     size_t file_size;
@@ -45,25 +51,31 @@ private:
         {
             return handle_error(__FUNCTION__, err);
         }
+
         std::cout << __FUNCTION__ << "(" << bytes_transferred << ")" 
             << ", in_avail=" << request_buf.in_avail()
             << ", size=" << request_buf.size()
             << ", max_size=" << request_buf.max_size() <<".\n";
+
         std::istream request_stream(&request_buf);
-        std::string file_path;            
+        std::string file_path;
+
         request_stream >> file_path;
         request_stream >> file_size;
         request_stream.read(buf.c_array(), 2); // eat the "\n\n"
+
         std::cout << file_path << " size is " << file_size << ", tellg=" << request_stream.tellg()<< std::endl;
         size_t pos = file_path.find_last_of('\\');
         if (pos!=std::string::npos)
             file_path = file_path.substr(pos+1);
-        output_file.open(file_path.c_str(), std::ios_base::binary);
+            output_file.open(file_path.c_str(), std::ios_base::binary);
+
         if (!output_file)
         {
             std::cout << "failed to open " << file_path << std::endl;
             return;
         }
+
         // write extra bytes to file
         do 
         {
@@ -71,9 +83,10 @@ private:
             std::cout << __FUNCTION__ << " write " << request_stream.gcount() << " bytes.\n";
             output_file.write(buf.c_array(), request_stream.gcount());
         } while (request_stream.gcount()>0);
+
         async_read(socket_, boost::asio::buffer(buf.c_array(), buf.size()),
             boost::bind(&async_tcp_connection::handle_read_file_content,
-            shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));           
+                shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
     }
 
     void handle_read_file_content(const boost::system::error_code& err, std::size_t bytes_transferred)
@@ -93,9 +106,9 @@ private:
         }
         async_read(socket_, boost::asio::buffer(buf.c_array(), buf.size()),
             boost::bind(&async_tcp_connection::handle_read_file_content,
-            shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
+                shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
     }
-    
+
 };
 
 class async_tcp_server : private boost::noncopyable
@@ -104,7 +117,7 @@ public:
     typedef boost::shared_ptr<async_tcp_connection> ptr_async_tcp_connection;
 
     async_tcp_server(unsigned short port)
-        : acceptor_(io_service_, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port), true)
+    : acceptor_(io_service_, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port), true)
     {
             ptr_async_tcp_connection new_connection_(new async_tcp_connection(io_service_));
             acceptor_.async_accept(new_connection_->socket(),
