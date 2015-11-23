@@ -19,7 +19,11 @@ public:
     {
         size_t pos = server.find(':');
         // no information regarding port number. Terminate.
-        if (pos == std::string::npos) return;
+        if (pos == std::string::npos)
+        {
+            std::cerr << "No port number specified." << std::endl;
+            return;
+        }
 
         std::string port_string = server.substr(pos+1);
         std::string server_ip_or_host = server.substr(0, pos);
@@ -105,28 +109,28 @@ private:
     {
         if (!err)
         {
-            if (source_file.eof()==false)
+            if (!source_file.eof())
             {
                 source_file.read(buf.c_array(), (std::streamsize)buf.size());
-                if (source_file.gcount()<=0)
+
+                if (source_file.gcount() <= 0)
                 {
                     std::cout << "read file error " << std::endl;
                     std::cout << "gcount: " << source_file.gcount() << std::endl;
                     return;
                 }
+
                 std::cout << "send " <<source_file.gcount()<<" bytes, total:" << source_file.tellg() << " bytes.\n";
+
                 boost::asio::async_write(socket_,
                     boost::asio::buffer(buf.c_array(), source_file.gcount()),
                     boost::bind(&async_tcp_client::handle_write_file, this,
                         boost::asio::placeholders::error));
-                if (err)
-                {
-                    std::cout << "send error:" << err << std::endl;
-                    return;
-                }
             }
             else
+            {
                 return;
+            }
         }
         else
         {
@@ -139,7 +143,7 @@ int main(int argc, char* argv[])
 {
     if (argc != 3)
     {
-        std::cerr << "Usage: " << argv[0] << " <server-address> <file path>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <server-address>:<port-no> <file path>" << std::endl;
 
         #ifdef _WIN32
         std::cerr << "sample: " << argv[0] << " 127.0.0.1:1234 c:\\tmp\\a.txt" << std::endl;
