@@ -119,31 +119,36 @@ public:
     async_tcp_server(unsigned short port)
     : acceptor_(io_service_, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port), true)
     {
-            ptr_async_tcp_connection new_connection_(new async_tcp_connection(io_service_));
-            acceptor_.async_accept(new_connection_->socket(),
-            boost::bind(&async_tcp_server::handle_accept, this,new_connection_,
-            boost::asio::placeholders::error));
-            io_service_.run();
-   }    
+        start_accept();
+        io_service_.run();
+    }
+
     void handle_accept(ptr_async_tcp_connection current_connection, const boost::system::error_code& e)
     {
         std::cout << __FUNCTION__ << " " << e << ", " << e.message()<<std::endl;
         if (!e)
         {
             current_connection->start();
-            ptr_async_tcp_connection new_connection_(new async_tcp_connection(io_service_));
-            acceptor_.async_accept(new_connection_->socket(),
-               boost::bind(&async_tcp_server::handle_accept, this,new_connection_,
-               boost::asio::placeholders::error));
         }
+        start_accept();
     }
+
     ~async_tcp_server()
     {
         io_service_.stop();
     }
+
 private:
     boost::asio::io_service io_service_;
     boost::asio::ip::tcp::acceptor acceptor_;
+
+    void start_accept()
+    {
+        ptr_async_tcp_connection new_connection_(new async_tcp_connection(io_service_));
+        acceptor_.async_accept(new_connection_->get_socket(),
+            boost::bind(&async_tcp_server::handle_accept, this, new_connection_,
+                boost::asio::placeholders::error));
+    }
 };
 
 int main(int argc, char* argv[])
