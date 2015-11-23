@@ -65,10 +65,17 @@ private:
         request_stream.read(buf.c_array(), 2); // eat the "\n\n"
 
         std::cout << file_path << " size is " << file_size << ", tellg=" << request_stream.tellg()<< std::endl;
-        size_t pos = file_path.find_last_of('\\');
-        if (pos!=std::string::npos)
+
+        // Find the last folder delimiter
+        size_t pos = file_path.find_last_of('/');
+
+        // '/' found. Cut all the folder names and just preserve the file name.
+        if (pos!= std::string::npos)
+        {
             file_path = file_path.substr(pos+1);
-            output_file.open(file_path.c_str(), std::ios_base::binary);
+        }
+
+        output_file.open(file_path.c_str(), std::ios_base::binary);
 
         if (!output_file)
         {
@@ -91,19 +98,25 @@ private:
 
     void handle_read_file_content(const boost::system::error_code& err, std::size_t bytes_transferred)
     {
-        if (bytes_transferred>0)
+        if (bytes_transferred > 0)
         {
             output_file.write(buf.c_array(), (std::streamsize)bytes_transferred);
             std::cout << __FUNCTION__ << " recv " << output_file.tellp() << " bytes."<< std::endl;
-            if (output_file.tellp()>=(std::streamsize)file_size)
+
+            // end of file reached
+            if (output_file.tellp() >= (std::streamsize)file_size)
             {
+                std:: cout << "End of file. Thread terminates..." << std::endl;
                 return;
             }
         }
+
         if (err)
         {
             return handle_error(__FUNCTION__, err);
         }
+
+        // recurse
         async_read(socket_, boost::asio::buffer(buf.c_array(), buf.size()),
             boost::bind(&async_tcp_connection::handle_read_file_content,
                 shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
