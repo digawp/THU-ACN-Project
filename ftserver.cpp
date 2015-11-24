@@ -2,12 +2,14 @@
 //receive a file from socket client via boost.asio
 #include <iostream>
 #include <string>
-#include <boost/asio.hpp>
 #include <fstream>
+
+#include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <boost/function.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/enable_shared_from_this.hpp>
+#include <boost/filesystem.hpp>
 
 unsigned short tcp_port = 1234;
 
@@ -76,7 +78,8 @@ private:
         // Folder delimiter found. Cut all the folder names and just preserve the file name.
         if (pos!= std::string::npos)
         {
-            file_path = file_path.substr(pos+1);
+            create_missing_directories(file_path.substr(0, pos));
+            // file_path = file_path.substr(pos+1);
         }
 
         output_file.open(file_path.c_str(), std::ios_base::binary);
@@ -126,6 +129,10 @@ private:
                 shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
     }
 
+    void create_missing_directories(const std::string& path)
+    {
+        boost::filesystem::create_directories(path);
+    }
 };
 
 class async_tcp_server : private boost::noncopyable
