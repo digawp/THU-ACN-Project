@@ -121,7 +121,7 @@ private:
                     return;
                 }
 
-                std::cout << "send " <<source_file.gcount()<<" bytes, total:" << source_file.tellg() << " bytes.\n";
+                // std::cout << "send " <<source_file.gcount()<<" bytes, total:" << source_file.tellg() << " bytes.\n";
 
                 boost::asio::async_write(socket_,
                     boost::asio::buffer(buf.c_array(), source_file.gcount()),
