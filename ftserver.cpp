@@ -22,7 +22,7 @@ public:
     void start()
     {
         std::cout << __FUNCTION__  << std::endl;
-        async_read_until(socket_, 
+        async_read_until(socket_,
             request_buf, "\n\n",
             boost::bind(&async_tcp_connection::handle_read_request,
                 shared_from_this(),
@@ -52,7 +52,7 @@ private:
             return handle_error(__FUNCTION__, err);
         }
 
-        std::cout << __FUNCTION__ << "(" << bytes_transferred << ")" 
+        std::cout << __FUNCTION__ << "(" << bytes_transferred << ")"
             << ", in_avail=" << request_buf.in_avail()
             << ", size=" << request_buf.size()
             << ", max_size=" << request_buf.max_size() <<".\n";
@@ -88,7 +88,7 @@ private:
         }
 
         // write extra bytes to file
-        do 
+        do
         {
             request_stream.read(buf.c_array(), (std::streamsize)buf.size());
             std::cout << __FUNCTION__ << " write " << request_stream.gcount() << " bytes.\n";
