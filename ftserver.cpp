@@ -105,7 +105,7 @@ private:
         if (bytes_transferred > 0)
         {
             output_file.write(buf.c_array(), (std::streamsize)bytes_transferred);
-            std::cout << __FUNCTION__ << " recv " << output_file.tellp() << " bytes."<< std::endl;
+            // std::cout << __FUNCTION__ << " recv " << output_file.tellp() << " bytes."<< std::endl;
 
             // end of file reached
             if (output_file.tellp() >= (std::streamsize)file_size)
