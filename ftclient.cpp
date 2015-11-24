@@ -6,6 +6,7 @@
 #include <boost/bind.hpp>
 #include <fstream>
 #include <sstream>
+#include <ctime>
 
 using boost::asio::ip::tcp;
 
@@ -154,6 +155,7 @@ int main(int argc, char* argv[])
         return __LINE__;
     }
 
+    std::time_t time_begin = std::time(NULL);
     try
     {
         boost::asio::io_service io_service;
@@ -166,5 +168,9 @@ int main(int argc, char* argv[])
     {
         std::cerr << e.what() << std::endl;
     }
+
+    std::time_t time_end = std::time(NULL);
+    std::cout << "Time elapsed: " << std::difftime(time_end, time_begin) << std::endl;
+
     return 0;
 }
