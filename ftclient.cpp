@@ -6,9 +6,12 @@
 #include <sstream>
 #include <memory>
 
+#include <cstdio>
+
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
+#include <boost/current_function.hpp>
 #include <boost/filesystem.hpp>
 
 using boost::asio::ip::tcp;
@@ -63,7 +66,7 @@ private:
         }
         else
         {
-            std::cout << "Error: " << err.message() << "\n";
+            print_error(BOOST_CURRENT_FUNCTION, err.message());
         }
     }
 
@@ -99,7 +102,7 @@ private:
         }
         else
         {
-            std::cout << "Error: " << err.message() << "\n";
+            print_error(BOOST_CURRENT_FUNCTION, err.message());
         }
     }
 
@@ -133,7 +136,7 @@ private:
         }
         else
         {
-            std::cout << "Error: " << err.message() << "\n";
+            print_error(BOOST_CURRENT_FUNCTION, err.message());
         }
     }
 
@@ -159,6 +162,11 @@ private:
         std::cout << "request size:" << request_buf.size() << std::endl;
 
         return ret;
+    }
+
+    void print_error(const std::string& func_name, const std::string& err_msg)
+    {
+        std::printf("Error in %s: %s\n", func_name.c_str(), err_msg.c_str());
     }
 };
 
