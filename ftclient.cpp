@@ -46,9 +46,9 @@ private:
     boost::asio::streambuf request_buf;
     std::vector<boost::filesystem::path> file_queue;
 
+    // Starts a chain of callbacks which creates a connection between the client and the server
     void connect(const std::string& server_ip, const std::string& server_port)
     {
-        std::cout << BOOST_CURRENT_FUNCTION << std::endl;
         tcp::resolver::query query(server_ip, server_port);
         resolver_.async_resolve(query,
             boost::bind(&async_tcp_client::handle_resolve, this,
@@ -56,6 +56,7 @@ private:
                 boost::asio::placeholders::iterator));
     }
 
+    // The callback function upon resolving the ip query
     void handle_resolve(const boost::system::error_code& err,
         tcp::resolver::iterator endpoint_iterator)
     {
@@ -78,6 +79,7 @@ private:
         }
     }
 
+    // The callback function upon connection attempt to server
     void handle_connect(const boost::system::error_code& err,
         std::shared_ptr<tcp::socket> socketv,
         tcp::resolver::iterator endpoint_iterator)
