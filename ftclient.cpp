@@ -82,6 +82,7 @@ private:
         if (!err)
         {
             std::shared_ptr<std::ifstream> filev = open_file(file_queue.back());
+            send_request(file_queue.back());
             file_queue.pop_back();
 
             // Create more connections for other files
@@ -145,28 +146,27 @@ private:
         }
     }
 
-    std::shared_ptr<std::ifstream> open_file(boost::filesystem::path& file_path)
+    std::shared_ptr<std::ifstream> open_file(const boost::filesystem::path& file_path)
     {
         std::shared_ptr<std::ifstream> ret =
-            std::make_shared<std::ifstream>(file_path.string(), std::ios_base::binary | std::ios_base::ate);
+            std::make_shared<std::ifstream>(file_path.string(), std::ios_base::binary);
+
         if (!ret->good())
         {
             std::cout << "failed to open " << file_path.string() << std::endl;
             std::exit(1);
         }
 
-        size_t file_size = ret->tellg();
-        ret->seekg(0);
+        return ret;
+    }
 
-        std::cout << "File size: " << file_size << std::endl;
-
+    void send_request(const boost::filesystem::path& file_path)
+    {
         // first send file name and file size to server
         std::ostream request_stream(&request_buf);
         request_stream << file_path.string() << "\n"
-            << file_size << "\n\n";
+            << boost::filesystem::file_size(file_path) << "\n\n";
         std::cout << "request size:" << request_buf.size() << std::endl;
-
-        return ret;
     }
 
     void print_error(const std::string& func_name, const std::string& err_msg)
