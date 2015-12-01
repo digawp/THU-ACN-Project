@@ -22,7 +22,6 @@ public:
     async_tcp_client(boost::asio::io_service& io_service,
         const std::string& server, std::vector<boost::filesystem::path> file_list)
     : resolver_(io_service),
-    socket_(io_service),
     file_queue(std::move(file_list))
     {
         size_t pos = server.find(':');
@@ -43,7 +42,6 @@ public:
 
 private:
     tcp::resolver resolver_;
-    tcp::socket socket_;
     boost::array<char, 1024> buf;
     boost::asio::streambuf request_buf;
     std::vector<boost::filesystem::path> file_queue;
@@ -66,9 +64,13 @@ private:
             // Attempt a connection to the first endpoint in the list. Each endpoint
             // will be tried until we successfully establish a connection.
             tcp::endpoint endpoint = *endpoint_iterator;
-            socket_.async_connect(endpoint,
+            std::shared_ptr<tcp::socket> socketv =
+                std::make_shared<tcp::socket>(resolver_.get_io_service());
+
+            socketv->async_connect(endpoint,
                 boost::bind(&async_tcp_client::handle_connect, this,
-                    boost::asio::placeholders::error, endpoint_iterator));
+                    boost::asio::placeholders::error,
+                    socketv, endpoint_iterator));
         }
         else
         {
@@ -77,6 +79,7 @@ private:
     }
 
     void handle_connect(const boost::system::error_code& err,
+        std::shared_ptr<tcp::socket> socketv,
         tcp::resolver::iterator endpoint_iterator)
     {
         if (!err)
@@ -93,18 +96,19 @@ private:
             }
 
             // The connection was successful. Send the request.
-            boost::asio::async_write(socket_, request_buf,
+            boost::asio::async_write(*socketv, request_buf,
                 boost::bind(&async_tcp_client::handle_write_file, this,
-                    boost::asio::placeholders::error, filev));
+                    boost::asio::placeholders::error, socketv, filev));
         }
         else if (++endpoint_iterator != tcp::resolver::iterator())
         {
             // The connection failed. Try the next endpoint in the list.
-            socket_.close();
+            socketv->close();
             tcp::endpoint endpoint = *endpoint_iterator;
-            socket_.async_connect(endpoint,
+            socketv->async_connect(endpoint,
                 boost::bind(&async_tcp_client::handle_connect, this,
-                    boost::asio::placeholders::error, ++endpoint_iterator));
+                    boost::asio::placeholders::error,
+                    socketv, ++endpoint_iterator));
         }
         else
         {
@@ -113,6 +117,7 @@ private:
     }
 
     void handle_write_file(const boost::system::error_code& err,
+        std::shared_ptr<tcp::socket> socketv,
         std::shared_ptr<std::ifstream> source_file)
     {
         if (!err)
@@ -129,11 +134,10 @@ private:
                 }
 
                 // std::cout << "send " <<source_file->gcount()<<" bytes, total:" << source_file->tellg() << " bytes.\n";
-
-                boost::asio::async_write(socket_,
+                boost::asio::async_write(*socketv,
                     boost::asio::buffer(buf.c_array(), source_file->gcount()),
                     boost::bind(&async_tcp_client::handle_write_file, this,
-                        boost::asio::placeholders::error, source_file));
+                        boost::asio::placeholders::error, socketv, source_file));
             }
             else
             {
