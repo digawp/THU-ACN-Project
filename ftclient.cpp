@@ -38,11 +38,7 @@ public:
 
         // Start an asynchronous resolve to translate the server and service names
         // into a list of endpoints.
-        tcp::resolver::query query(server_ip_or_host, port_string);
-        resolver_.async_resolve(query,
-            boost::bind(&async_tcp_client::handle_resolve, this,
-                boost::asio::placeholders::error,
-                boost::asio::placeholders::iterator));
+        connect(server_ip_or_host, port_string);
     }
 
 private:
@@ -51,6 +47,16 @@ private:
     boost::array<char, 1024> buf;
     boost::asio::streambuf request_buf;
     std::vector<boost::filesystem::path> file_queue;
+
+    void connect(const std::string& server_ip, const std::string& server_port)
+    {
+        std::cout << BOOST_CURRENT_FUNCTION << std::endl;
+        tcp::resolver::query query(server_ip, server_port);
+        resolver_.async_resolve(query,
+            boost::bind(&async_tcp_client::handle_resolve, this,
+                boost::asio::placeholders::error,
+                boost::asio::placeholders::iterator));
+    }
 
     void handle_resolve(const boost::system::error_code& err,
         tcp::resolver::iterator endpoint_iterator)
@@ -81,9 +87,8 @@ private:
             // Create more connections for other files
             if (!file_queue.empty())
             {
-                socket_.async_connect(*endpoint_iterator,
-                    boost::bind(&async_tcp_client::handle_connect, this,
-                        boost::asio::placeholders::error, endpoint_iterator));
+                tcp::endpoint endpoint = *endpoint_iterator;
+                connect(endpoint.address().to_string(), std::to_string(endpoint.port()));
             }
 
             // The connection was successful. Send the request.
