@@ -148,10 +148,10 @@ private:
     std::shared_ptr<std::ifstream> open_file(boost::filesystem::path& file_path)
     {
         std::shared_ptr<std::ifstream> ret =
-            std::make_shared<std::ifstream>(file_path.c_str(), std::ios_base::binary | std::ios_base::ate);
+            std::make_shared<std::ifstream>(file_path.string(), std::ios_base::binary | std::ios_base::ate);
         if (!ret->good())
         {
-            std::cout << "failed to open " << file_path.c_str() << std::endl;
+            std::cout << "failed to open " << file_path.string() << std::endl;
             std::exit(1);
         }
 
@@ -162,7 +162,7 @@ private:
 
         // first send file name and file size to server
         std::ostream request_stream(&request_buf);
-        request_stream << file_path << "\n"
+        request_stream << file_path.string() << "\n"
             << file_size << "\n\n";
         std::cout << "request size:" << request_buf.size() << std::endl;
 
