@@ -147,16 +147,6 @@ public:
         io_service_.run();
     }
 
-    void handle_accept(ptr_async_tcp_connection current_connection, const boost::system::error_code& e)
-    {
-        std::cout << __FUNCTION__ << " " << e << ", " << e.message()<<std::endl;
-        if (!e)
-        {
-            current_connection->start();
-        }
-        start_accept();
-    }
-
     ~async_tcp_server()
     {
         io_service_.stop();
@@ -173,6 +163,16 @@ private:
             boost::bind(&async_tcp_server::handle_accept, this, new_connection_,
                 boost::asio::placeholders::error));
     }
+
+    void handle_accept(ptr_async_tcp_connection current_connection, const boost::system::error_code& e)
+    {
+        std::cout << __FUNCTION__ << " " << e << ", " << e.message()<<std::endl;
+        if (!e)
+        {
+            current_connection->start();
+        }
+        start_accept();
+    }
 };
 
 int main(int argc, char* argv[])
@@ -185,7 +185,6 @@ int main(int argc, char* argv[])
         }
         std::cout <<argv[0] << " listen on port " << tcp_port << std::endl;
         async_tcp_server *recv_file_tcp_server = new async_tcp_server(tcp_port);
-        delete recv_file_tcp_server;
     }
     catch (std::exception& e)
     {
