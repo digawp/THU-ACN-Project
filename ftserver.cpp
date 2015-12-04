@@ -3,145 +3,127 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <memory>
 
 #include <boost/asio.hpp>
+#include <boost/array.hpp>
 #include <boost/bind.hpp>
 #include <boost/function.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/enable_shared_from_this.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/current_function.hpp>
 
-unsigned short tcp_port = 1234;
+namespace util
+{
+    void print_error(const std::string& func_name, const std::string& err_msg)
+    {
+        std::printf("Error in %s: %s.\n", func_name.c_str(), err_msg.c_str());
+    }
+}
 
-class async_tcp_connection: public boost::enable_shared_from_this<async_tcp_connection>
+class async_tcp_conn: public std::enable_shared_from_this<async_tcp_conn>
 {
 public:
-    async_tcp_connection(boost::asio::io_service& io_service)
-    : socket_(io_service), file_size(0)
+    async_tcp_conn(boost::asio::io_service& io_service)
+    : socket_(io_service)
     {
     }
 
-    void start()
+    void start(boost::filesystem::path file_path)
     {
-        std::cout << __FUNCTION__  << std::endl;
-        async_read_until(socket_,
-            request_buf, "\n\n",
-            boost::bind(&async_tcp_connection::handle_read_request,
-                shared_from_this(),
-                boost::asio::placeholders::error,
-                boost::asio::placeholders::bytes_transferred)
-            );
+        open_file(file_path);
+        create_send_info(file_path);
+        boost::asio::async_write(socket_, request_buf,
+                boost::bind(&async_tcp_conn::handle_write_file,
+                    shared_from_this(),
+                    boost::asio::placeholders::error));
+    }
+
+    void notify_done()
+    {
+        create_send_info();
+        boost::asio::write(socket_, request_buf);
+        return;
     }
 
     boost::asio::ip::tcp::socket& get_socket() { return socket_; }
 
 private:
     boost::asio::streambuf request_buf;
-    size_t file_size;
-    std::ofstream output_file;
+    std::ifstream source_file;
     boost::asio::ip::tcp::socket socket_;
     boost::array<char, 40960> buf;
 
-    void handle_error(const std::string& function_name, const boost::system::error_code& err)
+    void handle_write_file(const boost::system::error_code& err)
     {
-        std::cout << __FUNCTION__ << " in " << function_name <<" due to " << err <<" " << err.message()<< std::endl;
-    }
-
-    void handle_read_request(const boost::system::error_code& err, std::size_t bytes_transferred)
-    {
-        if (err)
+        if (!err)
         {
-            return handle_error(__FUNCTION__, err);
-        }
-
-        std::cout << __FUNCTION__ << "(" << bytes_transferred << ")"
-            << ", in_avail=" << request_buf.in_avail()
-            << ", size=" << request_buf.size()
-            << ", max_size=" << request_buf.max_size() <<".\n";
-
-        std::istream request_stream(&request_buf);
-        std::string file_path;
-
-        request_stream >> file_path;
-        request_stream >> file_size;
-        request_stream.read(buf.c_array(), 2); // eat the "\n\n"
-
-        std::cout << file_path << " size is " << file_size << ", tellg=" << request_stream.tellg()<< std::endl;
-
-        // Find the last folder delimiter
-        #ifdef _WIN32
-        size_t pos = file_path.find_last_of('\\');
-        #else
-        size_t pos = file_path.find_last_of('/');
-        #endif
-
-        // Folder delimiter found. Cut all the folder names and just preserve the file name.
-        if (pos!= std::string::npos)
-        {
-            create_missing_directories(file_path.substr(0, pos));
-            // file_path = file_path.substr(pos+1);
-        }
-
-        output_file.open(file_path.c_str(), std::ios_base::binary);
-
-        if (!output_file)
-        {
-            std::cout << "failed to open " << file_path << std::endl;
-            return;
-        }
-
-        // write extra bytes to file
-        do
-        {
-            request_stream.read(buf.c_array(), (std::streamsize)buf.size());
-            std::cout << __FUNCTION__ << " write " << request_stream.gcount() << " bytes.\n";
-            output_file.write(buf.c_array(), request_stream.gcount());
-        } while (request_stream.gcount()>0);
-
-        async_read(socket_, boost::asio::buffer(buf.c_array(), buf.size()),
-            boost::bind(&async_tcp_connection::handle_read_file_content,
-                shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
-    }
-
-    void handle_read_file_content(const boost::system::error_code& err, std::size_t bytes_transferred)
-    {
-        if (bytes_transferred > 0)
-        {
-            output_file.write(buf.c_array(), (std::streamsize)bytes_transferred);
-            // std::cout << __FUNCTION__ << " recv " << output_file.tellp() << " bytes."<< std::endl;
-
-            // end of file reached
-            if (output_file.tellp() >= (std::streamsize)file_size)
+            if (!source_file.eof())
             {
-                std:: cout << "End of file. Thread terminates..." << std::endl;
+                source_file.read(buf.c_array(), (std::streamsize)buf.size());
+
+                if (source_file.gcount() <= 0)
+                {
+                    std::cout << "read file error " << std::endl;
+                    std::cout << "gcount: " << source_file.gcount() << std::endl;
+                    return;
+                }
+
+                // std::cout << "send " <<source_file.gcount()<<" bytes, total:" << source_file.tellg() << " bytes.\n";
+                boost::asio::async_write(socket_,
+                    boost::asio::buffer(buf.c_array(), source_file.gcount()),
+                    boost::bind(&async_tcp_conn::handle_write_file,
+                        shared_from_this(),
+                        boost::asio::placeholders::error));
+            }
+            else
+            {
                 return;
             }
         }
-
-        if (err)
+        else
         {
-            return handle_error(__FUNCTION__, err);
+            util::print_error(BOOST_CURRENT_FUNCTION, err.message());
         }
-
-        // recurse
-        async_read(socket_, boost::asio::buffer(buf.c_array(), buf.size()),
-            boost::bind(&async_tcp_connection::handle_read_file_content,
-                shared_from_this(), boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
     }
 
-    void create_missing_directories(const std::string& path)
+    void open_file(const boost::filesystem::path& file_path)
     {
-        boost::filesystem::create_directories(path);
+        source_file.open(file_path.string(), std::ios_base::binary);
+
+        if (!source_file)
+        {
+            std::cout << "failed to open " << file_path.string() << std::endl;
+            std::exit(1);
+        }
+    }
+
+    void create_send_info()
+    {
+        std::ostream request_stream(&request_buf);
+        request_stream << "\0\0\n0\n\n";
+        std::cout << "request size:" << request_buf.size() << std::endl;
+    }
+
+    void create_send_info(const boost::filesystem::path& file_path)
+    {
+        // first send file name and file size to server
+        std::ostream request_stream(&request_buf);
+        request_stream << file_path.string() << "\n"
+            << boost::filesystem::file_size(file_path) << "\n\n";
+        std::cout << "request size:" << request_buf.size() << std::endl;
     }
 };
 
 class async_tcp_server : private boost::noncopyable
 {
 public:
-    typedef boost::shared_ptr<async_tcp_connection> ptr_async_tcp_connection;
+    typedef boost::asio::ip::tcp tcp;
+    typedef std::shared_ptr<async_tcp_conn> ptr_async_tcp_conn;
 
-    async_tcp_server(unsigned short port)
-    : acceptor_(io_service_, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port), true)
+    async_tcp_server(unsigned short port,
+        std::vector<boost::filesystem::path> v)
+    : acceptor_(io_service_, tcp::endpoint(tcp::v4(), port), true),
+    file_list(std::move(v))
     {
         start_accept();
         io_service_.run();
@@ -154,37 +136,54 @@ public:
 
 private:
     boost::asio::io_service io_service_;
-    boost::asio::ip::tcp::acceptor acceptor_;
+    tcp::acceptor acceptor_;
+    std::vector<boost::filesystem::path> file_list;
 
     void start_accept()
     {
-        ptr_async_tcp_connection new_connection_(new async_tcp_connection(io_service_));
+        ptr_async_tcp_conn new_connection_(new async_tcp_conn(io_service_));
         acceptor_.async_accept(new_connection_->get_socket(),
             boost::bind(&async_tcp_server::handle_accept, this, new_connection_,
                 boost::asio::placeholders::error));
     }
 
-    void handle_accept(ptr_async_tcp_connection current_connection, const boost::system::error_code& e)
+    void handle_accept(ptr_async_tcp_conn current_connection, const boost::system::error_code& e)
     {
         std::cout << __FUNCTION__ << " " << e << ", " << e.message()<<std::endl;
-        if (!e)
+        if (!e && !file_list.empty())
         {
-            current_connection->start();
+            current_connection->start(file_list.back());
+            file_list.pop_back();
+        }
+        else if (!e && file_list.empty())
+        {
+            current_connection->notify_done();
+        }
+        else
+        {
+            util::print_error(BOOST_CURRENT_FUNCTION, e.message());
         }
         start_accept();
     }
 };
 
+unsigned short tcp_port = 1234;
+std::string dir = "./test_files/several_normal_files/";
+
 int main(int argc, char* argv[])
 {
     try
     {
-        if (argc==2)
-        {
-            tcp_port=atoi(argv[1]);
-        }
+        using namespace boost::filesystem;
+
         std::cout <<argv[0] << " listen on port " << tcp_port << std::endl;
-        async_tcp_server *recv_file_tcp_server = new async_tcp_server(tcp_port);
+
+        std::vector<path> file_list;
+        path path_dir(dir);
+        std::copy(directory_iterator(path_dir), directory_iterator(),
+                back_inserter(file_list));
+
+        async_tcp_server tcp_server(tcp_port, file_list);
     }
     catch (std::exception& e)
     {
