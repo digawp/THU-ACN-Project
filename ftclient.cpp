@@ -24,14 +24,31 @@ namespace util
 
 using boost::asio::ip::tcp;
 
+class async_tcp_client
+{
+public:
+    async_tcp_client(const std::string& server);
+
+    void notify();
+
+private:
+    boost::asio::io_service io_service;
+    std::string server_ip;
+    std::string server_port;
+
+    // Starts a chain of callbacks which creates a connection between the client and the server
+    void create_connection();
+};
+
 // Inherit from std::enable_shared_from_this<> because it might be destructed
 // before the async callback returns
 class tcp_client_conn : public std::enable_shared_from_this<tcp_client_conn>
 {
 public:
-    tcp_client_conn(boost::asio::io_service& io_service)
+    tcp_client_conn(boost::asio::io_service& io_service, async_tcp_client* tcp_client)
     :resolver_(io_service), socket_(io_service), file_size(0)
     {
+        parent = tcp_client;
     }
 
     void start_connection(const std::string server_ip, const std::string server_port)
@@ -45,6 +62,8 @@ public:
     }
 
 private:
+    async_tcp_client* parent;
+
     std::size_t file_size;
     tcp::resolver resolver_;
     tcp::socket socket_;
@@ -167,12 +186,13 @@ private:
         if (bytes_transferred > 0)
         {
             output_file.write(buf.c_array(), (std::streamsize)bytes_transferred);
-            std::cout << __FUNCTION__ << " recv " << output_file.tellp() << " bytes."<< std::endl;
+            // std::cout << __FUNCTION__ << " recv " << output_file.tellp() << " bytes."<< std::endl;
 
             // end of file reached
             if (output_file.tellp() >= (std::streamsize)file_size)
             {
                 std:: cout << "End of file. Thread terminates..." << std::endl;
+                parent->notify();
                 return;
             }
         }
@@ -196,39 +216,37 @@ private:
     }
 };
 
-class async_tcp_client
+
+async_tcp_client::async_tcp_client(const std::string& server)
 {
-public:
-    async_tcp_client(const std::string& server)
+    size_t pos = server.find(':');
+    // no information regarding port number. Terminate.
+    if (pos == std::string::npos)
     {
-        size_t pos = server.find(':');
-        // no information regarding port number. Terminate.
-        if (pos == std::string::npos)
-        {
-            std::cerr << "No port number specified." << std::endl;
-            return;
-        }
-
-        std::string port_string = server.substr(pos+1);
-        std::string server_ip_or_host = server.substr(0, pos);
-
-        // Start an asynchronous resolve to translate the server and service names
-        // into a list of endpoints.
-        create_connection(server_ip_or_host, port_string);
-        io_service.run();
+        std::cerr << "No port number specified." << std::endl;
+        return;
     }
 
-private:
-    boost::asio::io_service io_service;
+    server_port = server.substr(pos+1);
+    server_ip = server.substr(0, pos);
 
-    // Starts a chain of callbacks which creates a connection between the client and the server
-    void create_connection(const std::string server_ip, const std::string server_port)
-    {
-        std::shared_ptr<tcp_client_conn> conn =
-            std::make_shared<tcp_client_conn>(io_service);
-        conn->start_connection(server_ip, server_port);
-    }
-};
+    // Start an asynchronous resolve to translate the server and service names
+    // into a list of endpoints.
+    create_connection();
+    io_service.run();
+}
+
+void async_tcp_client::notify()
+{
+    create_connection();
+}
+
+void async_tcp_client::create_connection()
+{
+    std::shared_ptr<tcp_client_conn> conn =
+        std::make_shared<tcp_client_conn>(io_service, this);
+    conn->start_connection(server_ip, server_port);
+}
 
 std::string server = "127.0.0.1:1234";
 
