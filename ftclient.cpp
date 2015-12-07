@@ -149,6 +149,7 @@ private:
             return;
         }
 
+        modify_path_to_fulfil_reqmts(file_path);
         create_missing_directories(file_path);
 
         output_file.open(file_path.c_str(), std::ios_base::binary);
@@ -201,6 +202,16 @@ private:
                 shared_from_this(),
                 boost::asio::placeholders::error,
                 boost::asio::placeholders::bytes_transferred));
+    }
+
+    void modify_path_to_fulfil_reqmts(std::string& path)
+    {
+        size_t pos = path.find("Server");
+
+        if (pos != std::string::npos)
+        {
+            path.replace(pos, 6, "Client");
+        }
     }
 
     void create_missing_directories(const std::string& path)
