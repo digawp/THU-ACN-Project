@@ -149,14 +149,7 @@ private:
             return;
         }
 
-        // Find the last folder delimiter
-        size_t pos = file_path.find_last_of('/');
-
-        // Folder delimiter found. Cut all the folder names and just preserve the file name.
-        if (pos!= std::string::npos)
-        {
-            create_missing_directories(file_path.substr(0, pos));
-        }
+        create_missing_directories(file_path);
 
         output_file.open(file_path.c_str(), std::ios_base::binary);
 
@@ -166,7 +159,7 @@ private:
             return;
         }
 
-        // write extra bytes to file
+        // write extra bytes to file, if any
         do
         {
             request_stream.read(buf.c_array(), (std::streamsize)buf.size());
@@ -212,7 +205,14 @@ private:
 
     void create_missing_directories(const std::string& path)
     {
-        boost::filesystem::create_directories(path);
+        // Find the last folder delimiter
+        size_t pos = path.find_last_of('/');
+
+        if (pos!= std::string::npos)
+        {
+            // Create the missing folders, ignore the file name
+            boost::filesystem::create_directories(path.substr(0, pos));
+        }
     }
 };
 
