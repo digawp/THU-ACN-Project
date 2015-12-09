@@ -141,7 +141,13 @@ private:
 
     void start_accept()
     {
+        while (!file_list.empty() && boost::filesystem::is_directory(file_list.back()))
+        {
+            file_list.pop_back();
+        }
+
         ptr_async_tcp_conn new_connection_(new async_tcp_conn(io_service_));
+
         acceptor_.async_accept(new_connection_->get_socket(),
             boost::bind(&async_tcp_server::handle_accept, this, new_connection_,
                 boost::asio::placeholders::error));
