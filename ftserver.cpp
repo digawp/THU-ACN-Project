@@ -168,7 +168,7 @@ private:
 };
 
 unsigned short tcp_port = 1234;
-std::string dir = "./test_files/several_normal_files/";
+std::string dir = "./Desktop/ServerFiles/";
 
 int main(int argc, char* argv[])
 {
@@ -180,7 +180,8 @@ int main(int argc, char* argv[])
 
         std::vector<path> file_list;
         path path_dir(dir);
-        std::copy(directory_iterator(path_dir), directory_iterator(),
+        std::copy(recursive_directory_iterator(path_dir),
+                recursive_directory_iterator(),
                 back_inserter(file_list));
 
         async_tcp_server tcp_server(tcp_port, file_list);
