@@ -143,7 +143,7 @@ private:
         std::cout << file_path << " size is " << file_size << ", tellg=" << request_stream.tellg()<< std::endl;
 
         // no more file to be received
-        if (file_path == "\0\0" || file_size == 0)
+        if (file_path == "\0\0")
         {
             std::cout << "No more files to receive" << std::endl;
             return;
