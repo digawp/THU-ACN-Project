@@ -61,7 +61,7 @@ private:
             {
                 source_file.read(buf.c_array(), (std::streamsize)buf.size());
 
-                if (source_file.gcount() <= 0)
+                if (source_file.gcount() < 0)
                 {
                     std::cout << "read file error " << std::endl;
                     std::cout << "gcount: " << source_file.gcount() << std::endl;
