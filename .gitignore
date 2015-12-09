@@ -1,3 +1,6 @@
-*/Desktop/
+# Contains files to be sent and received
+Desktop/
+
+# Build output
 *.exe
 
