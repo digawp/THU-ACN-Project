@@ -177,7 +177,7 @@ private:
 
     void handle_read_file_content(const boost::system::error_code& err, std::size_t bytes_transferred)
     {
-        if (bytes_transferred > 0)
+        if (bytes_transferred > 0 || err == boost::asio::error::eof)
         {
             output_file.write(buf.c_array(), (std::streamsize)bytes_transferred);
             // std::cout << __FUNCTION__ << " recv " << output_file.tellp() << " bytes."<< std::endl;
