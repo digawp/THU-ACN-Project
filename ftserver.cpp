@@ -126,6 +126,7 @@ public:
     file_list(std::move(v))
     {
         start_accept();
+        std::cout << "listening on port " << port << std::endl;
         io_service_.run();
     }
 
@@ -141,11 +142,6 @@ private:
 
     void start_accept()
     {
-        while (!file_list.empty() && boost::filesystem::is_directory(file_list.back()))
-        {
-            file_list.pop_back();
-        }
-
         ptr_async_tcp_conn new_connection_(new async_tcp_conn(io_service_));
 
         acceptor_.async_accept(new_connection_->get_socket(),
@@ -176,19 +172,23 @@ private:
 unsigned short tcp_port = 1234;
 std::string dir = "./Desktop/ServerFiles/";
 
+using namespace boost::filesystem;
+
+bool is_not_folder(const path& a)
+{
+    return !boost::filesystem::is_directory(a);
+}
+
 int main(int argc, char* argv[])
 {
     try
     {
-        using namespace boost::filesystem;
-
-        std::cout <<argv[0] << " listen on port " << tcp_port << std::endl;
-
         std::vector<path> file_list;
         path path_dir(dir);
-        std::copy(recursive_directory_iterator(path_dir),
+        std::copy_if(recursive_directory_iterator(path_dir),
                 recursive_directory_iterator(),
-                back_inserter(file_list));
+                back_inserter(file_list),
+                is_not_folder);
 
         async_tcp_server tcp_server(tcp_port, file_list);
     }
