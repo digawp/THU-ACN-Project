@@ -68,7 +68,6 @@ private:
                     return;
                 }
 
-                // std::cout << "send " <<source_file.gcount()<<" bytes, total:" << source_file.tellg() << " bytes.\n";
                 boost::asio::async_write(socket_,
                     boost::asio::buffer(buf.c_array(), source_file.gcount()),
                     boost::bind(&async_tcp_conn::handle_write_file,
@@ -110,7 +109,6 @@ private:
         std::ostream request_stream(&request_buf);
         request_stream << file_path.string() << "\n"
             << boost::filesystem::file_size(file_path) << "\n\n";
-        std::cout << "request size:" << request_buf.size() << std::endl;
     }
 };
 
@@ -151,7 +149,6 @@ private:
 
     void handle_accept(ptr_async_tcp_conn current_connection, const boost::system::error_code& e)
     {
-        std::cout << __FUNCTION__ << " " << e << ", " << e.message()<<std::endl;
         if (!e && !file_list.empty())
         {
             current_connection->start(file_list.back());

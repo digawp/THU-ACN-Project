@@ -97,7 +97,6 @@ private:
     {
         if (!err)
         {
-            std::cout << BOOST_CURRENT_FUNCTION << std::endl;
             async_read_until(socket_,
                 request_buf, "\n\n",
                 boost::bind(&tcp_client_conn::handle_read_request, shared_from_this(),
@@ -128,19 +127,12 @@ private:
             return util::print_error(BOOST_CURRENT_FUNCTION, err.message());
         }
 
-        std::cout << __FUNCTION__ << "(" << bytes_transferred << ")"
-            << ", in_avail=" << request_buf.in_avail()
-            << ", size=" << request_buf.size()
-            << ", max_size=" << request_buf.max_size() <<".\n";
-
         std::istream request_stream(&request_buf);
         std::string file_path;
 
         request_stream >> file_path;
         request_stream >> file_size;
         request_stream.read(buf.c_array(), 2); // eat the "\n\n"
-
-        std::cout << file_path << " size is " << file_size << ", tellg=" << request_stream.tellg()<< std::endl;
 
         // no more file to be received
         if (file_path == "\0\0")
@@ -164,7 +156,6 @@ private:
         do
         {
             request_stream.read(buf.c_array(), (std::streamsize)buf.size());
-            std::cout << __FUNCTION__ << " write " << request_stream.gcount() << " bytes.\n";
             output_file.write(buf.c_array(), request_stream.gcount());
         } while (request_stream.gcount()>0);
 
@@ -180,12 +171,10 @@ private:
         if (bytes_transferred > 0 || err == boost::asio::error::eof)
         {
             output_file.write(buf.c_array(), (std::streamsize)bytes_transferred);
-            // std::cout << __FUNCTION__ << " recv " << output_file.tellp() << " bytes."<< std::endl;
 
             // end of file reached
             if (output_file.tellp() >= (std::streamsize)file_size)
             {
-                std:: cout << "End of file. Thread terminates..." << std::endl;
                 parent->notify();
                 return;
             }
