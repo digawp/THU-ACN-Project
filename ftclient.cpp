@@ -14,6 +14,9 @@
 #include <boost/current_function.hpp>
 #include <boost/filesystem.hpp>
 
+std::string server = "127.0.0.1:1234";
+const std::string parent_dir = strcat(getenv("HOME"), "/Desktop/ClientFiles");
+
 namespace util
 {
     void print_error(const std::string& func_name, const std::string& err_msg)
@@ -195,12 +198,7 @@ private:
 
     void modify_path_to_fulfil_reqmts(std::string& path)
     {
-        size_t pos = path.find("Server");
-
-        if (pos != std::string::npos)
-        {
-            path.replace(pos, 6, "Client");
-        }
+        path = parent_dir + path;
     }
 
     void create_missing_directories(const std::string& path)
@@ -247,8 +245,6 @@ void async_tcp_client::create_connection()
         std::make_shared<tcp_client_conn>(io_service, this);
     conn->start_connection(server_ip, server_port);
 }
-
-std::string server = "127.0.0.1:1234";
 
 int main(int argc, char* argv[])
 {

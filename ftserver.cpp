@@ -12,6 +12,9 @@
 #include <boost/filesystem.hpp>
 #include <boost/current_function.hpp>
 
+const unsigned short tcp_port = 1234;
+const std::string parent_dir = strcat(getenv("HOME"), "/Desktop/ServerFiles");
+
 namespace util
 {
     void print_error(const std::string& func_name, const std::string& err_msg)
@@ -107,8 +110,8 @@ private:
     {
         // first send file name and file size to server
         std::ostream request_stream(&request_buf);
-        request_stream << file_path.string() << "\n"
-            << boost::filesystem::file_size(file_path) << "\n\n";
+        request_stream << file_path.string().substr(parent_dir.length(), std::string::npos)
+            << "\n" << boost::filesystem::file_size(file_path) << "\n\n";
     }
 };
 
@@ -166,8 +169,7 @@ private:
     }
 };
 
-unsigned short tcp_port = 1234;
-std::string dir = "./Desktop/ServerFiles/";
+
 
 using namespace boost::filesystem;
 
@@ -181,7 +183,7 @@ int main(int argc, char* argv[])
     try
     {
         std::vector<path> file_list;
-        path path_dir(dir);
+        path path_dir(parent_dir);
         std::copy_if(recursive_directory_iterator(path_dir),
                 recursive_directory_iterator(),
                 back_inserter(file_list),
